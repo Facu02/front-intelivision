@@ -1,7 +1,7 @@
 <ion-header [translucent]="true">
   <ion-toolbar>
     <ion-title>
-      Tab 1
+      InteLeVision
     </ion-title>
   </ion-toolbar>
 </ion-header>
@@ -9,9 +9,130 @@
 <ion-content [fullscreen]="true">
   <ion-header collapse="condense">
     <ion-toolbar>
-      <ion-title size="large">Tab 1</ion-title>
+      <ion-title size="large">InteLeVision</ion-title>
     </ion-toolbar>
   </ion-header>
 
-  <app-explore-container name="Tab 1 page"></app-explore-container>
+  <!-- Video de cámara -->
+  <div class="video-container">
+    <video #videoElement 
+           class="video-element" 
+           autoplay 
+           muted 
+           playsinline
+           webkit-playsinline
+           controls="false">
+    </video>
+    
+    <!-- Overlay con información de estado -->
+    <div class="status-overlay">
+      <ion-badge [color]="getStatusColor()">
+        {{ getStatusText() }}
+      </ion-badge>
+      <ion-badge color="primary" *ngIf="isInitialized">
+        {{ getPersonasCount() }} personas | {{ getObjetosCount() }} objetos
+      </ion-badge>
+    </div>
+  </div>
+
+  <!-- Controles -->
+  <div class="controls-container">
+    <ion-button (click)="switchCamera()" 
+                [disabled]="!isInitialized"
+                fill="outline">
+      <ion-icon name="camera-reverse" slot="start"></ion-icon>
+      Cambiar Cámara
+    </ion-button>
+    
+    <ion-button (click)="isProcessing ? stopProcessing() : startProcessing()" 
+                [disabled]="!isInitialized"
+                [color]="isProcessing ? 'warning' : 'success'">
+      <ion-icon [name]="isProcessing ? 'eye-off' : 'eye'" slot="start"></ion-icon>
+      {{ isProcessing ? 'Pausar' : 'Iniciar' }}
+    </ion-button>
+
+    <ion-button (click)="checkCameraPermissions()" 
+                fill="outline" 
+                color="tertiary"
+                *ngIf="!isInitialized">
+      <ion-icon name="help-circle" slot="start"></ion-icon>
+      Diagnóstico iOS
+    </ion-button>
+  </div>
+
+  <!-- Tarjeta de información en tiempo real -->
+  <ion-card class="data-card">
+    <ion-card-header>
+      <ion-card-title>
+        <ion-icon name="eye"></ion-icon>
+        Datos en Tiempo Real
+      </ion-card-title>
+    </ion-card-header>
+    
+    <ion-card-content>
+      <div class="timestamp">
+        Última actualización: {{ getLastUpdate() }}
+      </div>
+      
+      <!-- Personas detectadas -->
+      <div class="section-title">
+        <ion-icon name="people"></ion-icon>
+        Personas Detectadas ({{ getPersonasCount() }})
+      </div>
+      
+      <ion-list *ngIf="currentSensorData.personas.length > 0">
+        <ion-item *ngFor="let persona of currentSensorData.personas; let i = index">
+          <ion-label>
+            <h2>Persona {{ i + 1 }}</h2>
+            <p><strong>Posición:</strong> {{ persona.posicion }}</p>
+            <p><strong>Distancia:</strong> {{ persona.distancia }}</p>
+            <p><strong>Expresión:</strong> {{ persona.expresion }}</p>
+            <p><strong>Gesto:</strong> {{ persona.gesto }}</p>
+            <p><strong>Confianza:</strong> {{ (persona.confianza || 0) * 100 | number:'1.0-1' }}%</p>
+          </ion-label>
+        </ion-item>
+      </ion-list>
+      
+      <div class="no-data" *ngIf="currentSensorData.personas.length === 0">
+        <p>No se detectaron personas</p>
+      </div>
+
+      <!-- Objetos detectados -->
+      <div class="section-title">
+        <ion-icon name="cube"></ion-icon>
+        Objetos Detectados ({{ getObjetosCount() }})
+      </div>
+      
+      <ion-list *ngIf="currentSensorData.objetos.length > 0">
+        <ion-item *ngFor="let objeto of currentSensorData.objetos; let i = index">
+          <ion-label>
+            <h2>{{ objeto.tipo }}</h2>
+            <p><strong>Movimiento:</strong> {{ objeto.movimiento }}</p>
+            <p><strong>Dirección:</strong> {{ objeto.direccion }}</p>
+            <p><strong>Velocidad:</strong> {{ objeto.velocidad }}</p>
+            <p><strong>Distancia:</strong> {{ objeto.distancia }}</p>
+            <p><strong>Confianza:</strong> {{ (objeto.confianza || 0) * 100 | number:'1.0-1' }}%</p>
+          </ion-label>
+        </ion-item>
+      </ion-list>
+      
+      <div class="no-data" *ngIf="currentSensorData.objetos.length === 0">
+        <p>No se detectaron objetos</p>
+      </div>
+    </ion-card-content>
+  </ion-card>
+
+  <!-- Datos JSON para debugging -->
+  <ion-card class="debug-card">
+    <ion-card-header>
+      <ion-card-title>
+        <ion-icon name="code"></ion-icon>
+        Datos JSON (Debug)
+      </ion-card-title>
+    </ion-card-header>
+    
+    <ion-card-content>
+      <pre class="json-output">{{ currentSensorData | json }}</pre>
+    </ion-card-content>
+  </ion-card>
 </ion-content>
