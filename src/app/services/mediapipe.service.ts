@@ -112,13 +112,15 @@ export class MediaPipeService {
           const worldLandmarks = poseResults.worldLandmarks?.[i];
           const faceMatch = faceResults.faceLandmarks?.[i];
           
+          const expressionData = this.getGoogleExpression(faceResults, i);
           const persona: PersonDetection = {
             posicion: this.calculateRealPosition(landmarks),
             distancia: this.calculateRealDistance(landmarks, worldLandmarks),
-            expresion: this.getGoogleExpression(faceResults, i),
+            expresion: expressionData.expression,
             gesto: this.getGoogleGesture(landmarks),
             confianza: this.calculatePoseConfidence(landmarks),
-            id: `persona_${i + 1}`
+            id: `persona_${i + 1}`,
+            blendshapes: expressionData.blendshapes
           };
           
           personas.push(persona);
@@ -203,23 +205,29 @@ export class MediaPipeService {
     return '3.0m+';
   }
 
-  private getGoogleExpression(faceResults: any, personIndex: number): string {
+  private getGoogleExpression(faceResults: any, personIndex: number): any {
     try {
-      // Usar directamente los BlendShapes de Google MediaPipe
+      // Usar TODOS los BlendShapes de Google MediaPipe sin filtrar
       const blendshapes = faceResults.faceBlendshapes?.[personIndex];
       
       if (!blendshapes || !blendshapes.categories) {
-        return 'no_detectada';
+        return { expression: 'no_detectada', blendshapes: [] };
       }
 
-      // Buscar las emociones más prominentes en los blendshapes
+      // Enviar TODOS los BlendShapes originales al LLM
+      const allBlendshapes = blendshapes.categories.map((category: any) => ({
+        name: category.categoryName, // Nombre original en inglés
+        score: category.score
+      }));
+
+      // También mantener una expresión simplificada para compatibilidad
       const emotions: { [key: string]: number } = {};
       
       blendshapes.categories.forEach((category: any) => {
         const name = category.categoryName.toLowerCase();
         const score = category.score;
         
-        // Mapear blendshapes a emociones
+        // Mapear blendshapes a emociones básicas
         if (name.includes('smile')) {
           emotions['feliz'] = (emotions['feliz'] || 0) + score;
         }
@@ -236,7 +244,7 @@ export class MediaPipeService {
 
       // Encontrar la emoción con mayor puntuación
       let maxEmotion = 'neutral';
-      let maxScore = 0.15; // Threshold mínimo
+      let maxScore = 0.15;
       
       Object.entries(emotions).forEach(([emotion, score]) => {
         if (score > maxScore) {
@@ -245,12 +253,15 @@ export class MediaPipeService {
         }
       });
 
-      console.log(`🎭 Expresión detectada: ${maxEmotion} (${(maxScore * 100).toFixed(1)}%)`);
-      return maxEmotion;
+      console.log(`🎭 BlendShapes detectados: ${allBlendshapes.length} expresiones`);
+      return {
+        expression: maxEmotion, // Para compatibilidad
+        blendshapes: allBlendshapes // TODOS los BlendShapes originales
+      };
       
     } catch (error) {
-      console.log('⚠️ Error obteniendo expresión de Google:', error);
-      return 'neutral';
+      console.log('⚠️ Error obteniendo BlendShapes de Google:', error);
+      return { expression: 'neutral', blendshapes: [] };
     }
   }
 
@@ -325,27 +336,9 @@ export class MediaPipeService {
   }
 
   private translateObjectName(englishName: string): string {
-    const translations: { [key: string]: string } = {
-      'person': 'persona',
-      'bicycle': 'bicicleta',
-      'car': 'coche',
-      'motorcycle': 'motocicleta',
-      'bus': 'autobus',
-      'truck': 'camion',
-      'chair': 'silla',
-      'table': 'mesa',
-      'bottle': 'botella',
-      'cup': 'taza',
-      'phone': 'telefono',
-      'laptop': 'laptop',
-      'book': 'libro',
-      'clock': 'reloj',
-      'dog': 'perro',
-      'cat': 'gato',
-      'bird': 'pajaro'
-    };
-    
-    return translations[englishName] || englishName;
+    // Mantener nombres originales en inglés para el LLM
+    // El LLM puede entender perfectamente 'person', 'bicycle', 'car', etc.
+    return englishName;
   }
 
   private analyzeRealMovement(detection: any): string {

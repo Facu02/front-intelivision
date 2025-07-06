@@ -5,6 +5,10 @@ export interface PersonDetection {
   gesto: string;
   confianza?: number;
   id?: string;
+  blendshapes?: Array<{
+    name: string;
+    score: number;
+  }>;
 }
 
 export interface ObjectDetection {
